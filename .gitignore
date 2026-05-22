@@ -54,3 +54,33 @@ logs/
 
 # Docx temp files
 ~$*.docx
+
+# --- Sensitive & generated data ---
+# Uploaded user files (images, thumbnails, exports)
+uploads/
+**/uploads/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Database dumps / backups
+*.sql
+*.dump
+*.backup
+
+# Secrets / credentials
+secrets.*
+credentials.*
+*.pem
+*.key
+*.crt
+
+# Local config overrides (except examples)
+*.local
+!.env.example
+
+# Root-level generated files
+package-lock.json
+package.json

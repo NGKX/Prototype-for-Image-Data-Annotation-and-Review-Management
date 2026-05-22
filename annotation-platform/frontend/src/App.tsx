@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import AppLayout from "@/components/layout/AppLayout";
 import LoginPage from "@/features/auth/LoginPage";
+import RegisterPage from "@/features/auth/RegisterPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import ProjectListPage from "@/features/projects/ProjectListPage";
 import ImageListPage from "@/features/images/ImageListPage";
@@ -9,6 +10,7 @@ import StatsPage from "@/features/stats/StatsPage";
 import TrashPage from "@/features/trash/TrashPage";
 import CategoryPage from "@/features/categories/CategoryPage";
 import ExportPage from "@/features/export/ExportPage";
+import AnnotationWorkbench from "@/features/annotation/AnnotationWorkbench";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -20,6 +22,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/projects/:pid/annotate/:iid" element={<ProtectedRoute><AnnotationWorkbench /></ProtectedRoute>} />
       <Route
         path="/"
         element={

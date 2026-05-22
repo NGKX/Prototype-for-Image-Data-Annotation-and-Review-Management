@@ -2,15 +2,21 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.database import engine
+from app.models import Base
 from app.api.v1 import router as v1_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app.core.database import init_db
-    await init_db()
-    from app.utils.storage import init_minio_buckets
-    await init_minio_buckets()
+    # Create database tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Initialize local file storage
+    from app.utils.local_storage import init_storage
+    init_storage()
+
     yield
 
 

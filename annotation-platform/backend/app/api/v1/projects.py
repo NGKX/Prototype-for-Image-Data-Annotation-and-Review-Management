@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
@@ -11,6 +11,24 @@ from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectRead
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter()
+
+
+async def _get_counts(db: AsyncSession, project_ids: list[UUID]) -> dict:
+    """Batch-load image counts for multiple projects in a single query."""
+    if not project_ids:
+        return {}
+    stmt = (
+        select(
+            Image.project_id,
+            func.count(Image.id).label("total"),
+            func.count(case((Image.annotation_status == "annotated", 1))).label("annotated"),
+            func.count(case((Image.review_status == "approved", 1))).label("approved"),
+        )
+        .where(Image.project_id.in_(project_ids), Image.deleted_at.is_(None))
+        .group_by(Image.project_id)
+    )
+    rows = (await db.execute(stmt)).all()
+    return {row.project_id: (row.total, row.annotated, row.approved) for row in rows}
 
 
 @router.get("", response_model=PaginatedResponse[ProjectRead])
@@ -33,15 +51,16 @@ async def list_projects(
     result = await db.execute(query.order_by(Project.created_at.desc()).offset(offset).limit(page_size))
     projects = result.scalars().all()
 
+    # Single batch query for all counts
+    counts = await _get_counts(db, [p.id for p in projects])
+
     items = []
     for p in projects:
-        img_count = (await db.execute(select(func.count(Image.id)).where(Image.project_id == p.id, Image.deleted_at.is_(None)))).scalar() or 0
-        annotated_count = (await db.execute(select(func.count(Image.id)).where(Image.project_id == p.id, Image.deleted_at.is_(None), Image.annotation_status == "annotated"))).scalar() or 0
-        approved_count = (await db.execute(select(func.count(Image.id)).where(Image.project_id == p.id, Image.deleted_at.is_(None), Image.review_status == "approved"))).scalar() or 0
+        tc, ac, apc = counts.get(p.id, (0, 0, 0))
         items.append(ProjectRead(
             id=p.id, name=p.name, description=p.description, status=p.status,
             created_by=p.created_by, created_at=p.created_at, updated_at=p.updated_at,
-            image_count=img_count, annotated_count=annotated_count, approved_count=approved_count,
+            image_count=tc, annotated_count=ac or 0, approved_count=apc or 0,
         ))
 
     total_pages = (total + page_size - 1) // page_size
@@ -67,15 +86,67 @@ async def create_project(
 
 
 @router.get("/{project_id}", response_model=ProjectRead)
-async def get_project(project_id: UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_project(
+    project_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    img_count = (await db.execute(select(func.count(Image.id)).where(Image.project_id == project.id, Image.deleted_at.is_(None)))).scalar() or 0
+    counts = await _get_counts(db, [project.id])
+    tc, ac, apc = counts.get(project.id, (0, 0, 0))
     return ProjectRead(
         id=project.id, name=project.name, description=project.description,
         status=project.status, created_by=project.created_by,
         created_at=project.created_at, updated_at=project.updated_at,
-        image_count=img_count, annotated_count=0, approved_count=0,
+        image_count=tc, annotated_count=ac or 0, approved_count=apc or 0,
+    )
+
+
+@router.put("/{project_id}", response_model=ProjectRead)
+async def update_project(
+    project_id: UUID,
+    body: ProjectUpdate,
+    current_user: dict = Depends(require_roles("admin", "data_manager")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    update_data = body.model_dump(exclude_none=True)
+    for key, val in update_data.items():
+        setattr(project, key, val)
+    await db.commit()
+    await db.refresh(project)
+    counts = await _get_counts(db, [project.id])
+    tc, ac, apc = counts.get(project.id, (0, 0, 0))
+    return ProjectRead(
+        id=project.id, name=project.name, description=project.description,
+        status=project.status, created_by=project.created_by,
+        created_at=project.created_at, updated_at=project.updated_at,
+        image_count=tc, annotated_count=ac or 0, approved_count=apc or 0,
+    )
+
+
+@router.patch("/{project_id}/archive", response_model=ProjectRead)
+async def archive_project(
+    project_id: UUID,
+    current_user: dict = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    project.status = "archived"
+    await db.commit()
+    await db.refresh(project)
+    return ProjectRead(
+        id=project.id, name=project.name, description=project.description,
+        status=project.status, created_by=project.created_by,
+        created_at=project.created_at, updated_at=project.updated_at,
+        image_count=0, annotated_count=0, approved_count=0,
     )
