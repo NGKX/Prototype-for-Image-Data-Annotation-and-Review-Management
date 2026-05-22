@@ -1,0 +1,51 @@
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.eggs/
+*.egg
+.venv/
+venv/
+*.whl
+
+# Node
+node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Alembic (contains DB credentials)
+backend/alembic.ini
+
+# ML model weights (large binary files)
+ml_service/models/*.pt
+ml_service/models/*.pth
+ml_service/models/*.onnx
+ml_service/models/*.safetensors
+
+# MinIO data volumes
+minio_data/
+pgdata/
+redis_data/
+
+# Logs
+*.log
+logs/

@@ -1,0 +1,56 @@
+# --- annotation-platform project ---
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Config files with credentials
+alembic.ini
+
+# Docker overrides
+docker-compose.override.yml
+
+# ML model weights (large binary)
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Data volumes
+minio_data/
+pgdata/
+redis_data/
+
+# --- General ---
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.eggs/
+*.egg
+.venv/
+venv/
+*.whl
+
+# Node
+node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docx temp files
+~$*.docx
