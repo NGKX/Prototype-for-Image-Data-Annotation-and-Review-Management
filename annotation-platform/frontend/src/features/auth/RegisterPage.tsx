@@ -84,9 +84,10 @@ export default function RegisterPage() {
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
-                <option value="annotator">标注员</option>
-                <option value="reviewer">审核员</option>
+                <option value="admin">管理员</option>
                 <option value="data_manager">数据管理员</option>
+                <option value="reviewer">审核员</option>
+                <option value="annotator">标注员</option>
               </select>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

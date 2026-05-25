@@ -16,8 +16,9 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
 
-    # Force annotator role for self-registration; admin promotion requires existing admin
-    body.role = "annotator"
+    # Validate role: only allow known roles, default to annotator
+    if body.role not in ("admin", "data_manager", "reviewer", "annotator"):
+        body.role = "annotator"
 
     user = User(
         username=body.username,
