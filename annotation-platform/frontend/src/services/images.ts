@@ -52,6 +52,13 @@ export async function getTrashImages(projectId: string, params?: Record<string, 
   return response.data;
 }
 
+export async function toggleSensitive(imageId: string, isSensitive: boolean, note?: string) {
+  const response = await api.patch(`/images/${imageId}/sensitive`, null, {
+    params: { is_sensitive: isSensitive, sensitive_note: note },
+  });
+  return response.data;
+}
+
 // ── Review APIs ──
 
 export async function getReviewQueue(projectId: string, params?: Record<string, any>) {

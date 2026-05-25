@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getImages, uploadImages, autoAnnotate, deleteImage } from "@/services/images";
+import { getImages, uploadImages, autoAnnotate, deleteImage, toggleSensitive } from "@/services/images";
 import { getProject } from "@/services/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore } from "@/store/authStore";
-import { Upload, Search, Image as ImageIcon, Sparkles, ClipboardCheck, Trash2 } from "lucide-react";
+import { Upload, Search, Image as ImageIcon, Sparkles, ClipboardCheck, Trash2, ShieldAlert } from "lucide-react";
 import type { Project } from "@/types/project";
 
 const statusLabel: Record<string, string> = {
@@ -82,10 +82,16 @@ export default function ImageListPage() {
           <h1 className="text-2xl font-bold">{project?.name || "图片列表"}</h1>
           <p className="text-sm text-muted-foreground">共 {total} 张图片</p>
         </div>
-        <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
-          <Upload className="mr-1 h-4 w-4" />
-          {uploading ? "上传中..." : "上传图片"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-yellow-600 flex items-center gap-1">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            上传前请确保数据已脱敏处理
+          </p>
+          <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
+            <Upload className="mr-1 h-4 w-4" />
+            {uploading ? "上传中..." : "上传图片"}
+          </Button>
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -154,8 +160,19 @@ export default function ImageListPage() {
                   <Badge variant={img.review_status === "approved" ? "success" : img.review_status === "rejected" ? "destructive" : "outline"} className="text-xs">
                     {reviewLabel[img.review_status] || img.review_status}
                   </Badge>
+                  {img.is_sensitive && (
+                    <Badge variant="destructive" className="text-xs flex items-center gap-0.5">
+                      <ShieldAlert className="h-2.5 w-2.5" />
+                      含敏感数据
+                    </Badge>
+                  )}
                 </div>
                 {img.width && <p className="mt-1 text-xs text-muted-foreground">{img.width}×{img.height}</p>}
+                {img.sensitive_note && (
+                  <p className="mt-0.5 text-xs text-yellow-600 truncate" title={img.sensitive_note}>
+                    ⚠ {img.sensitive_note}
+                  </p>
+                )}
                 <div className="mt-2 flex gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
                   {canAutoAnnotate && (
                     <Button variant="outline" size="sm" className="text-xs h-7"
@@ -170,6 +187,18 @@ export default function ImageListPage() {
                     <Button variant="default" size="sm" className="text-xs h-7"
                       onClick={() => navigate(`/projects/${pid}/review/${img.id}`)}>
                       <ClipboardCheck className="mr-1 h-3 w-3" /> 审核
+                    </Button>
+                  )}
+                  {canAutoAnnotate && (
+                    <Button variant="ghost" size="sm" className={`text-xs h-7 ${img.is_sensitive ? "text-yellow-600" : "text-muted-foreground"}`}
+                      title={img.is_sensitive ? "取消敏感标记" : "标记为敏感数据"}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const note = img.is_sensitive ? undefined : (prompt("敏感数据说明（选填）：") || undefined);
+                        try { await toggleSensitive(img.id, !img.is_sensitive, note); load(); }
+                        catch (err) { console.error(err); }
+                      }}>
+                      <ShieldAlert className="h-3 w-3" />
                     </Button>
                   )}
                   {canAutoAnnotate && (

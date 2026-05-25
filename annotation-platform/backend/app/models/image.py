@@ -21,6 +21,9 @@ class Image(Base):
     annotation_status: Mapped[str] = mapped_column(String(32), default="unannotated", nullable=False)
     review_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
 
+    is_sensitive: Mapped[bool] = mapped_column(default=False, nullable=False)
+    sensitive_note: Mapped[str | None] = mapped_column(String(512))
+
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

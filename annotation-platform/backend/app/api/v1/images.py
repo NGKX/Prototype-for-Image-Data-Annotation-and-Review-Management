@@ -98,6 +98,30 @@ async def submit_review(
     return {"status": "ok", "review_status": "pending"}
 
 
+@router.patch("/{image_id}/sensitive")
+async def toggle_sensitive(
+    image_id: uuid.UUID,
+    is_sensitive: bool | None = Query(None),
+    sensitive_note: str | None = Query(None),
+    current_user: dict = Depends(require_roles("admin", "data_manager")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from app.models.image import Image as ImageModel
+
+    result = await db.execute(select(ImageModel).where(ImageModel.id == image_id, ImageModel.deleted_at.is_(None)))
+    img = result.scalar_one_or_none()
+    if not img:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    if is_sensitive is not None:
+        img.is_sensitive = is_sensitive
+    if sensitive_note is not None:
+        img.sensitive_note = sensitive_note
+    await db.commit()
+    return {"status": "ok", "is_sensitive": img.is_sensitive, "sensitive_note": img.sensitive_note}
+
+
 @router.get("/{image_id}")
 async def get_image(
     image_id: uuid.UUID,

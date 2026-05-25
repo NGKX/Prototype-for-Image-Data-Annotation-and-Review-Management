@@ -13,6 +13,8 @@ export interface Image {
   mime_type: string;
   annotation_status: AnnotationStatus;
   review_status: ReviewStatus;
+  is_sensitive?: boolean;
+  sensitive_note?: string;
   uploaded_by?: string;
   thumbnail_url?: string;
   presigned_url?: string;
