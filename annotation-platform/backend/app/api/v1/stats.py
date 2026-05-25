@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db
 from app.core.security import get_current_user
 from app.models.image import Image
+from app.models.project import Project
+from app.models.task_assignment import TaskAssignment
 from app.models.annotation import Annotation
 from app.models.review import ReviewRecord
 from app.models.category import Category
@@ -208,3 +210,122 @@ async def category_stats(
         })
 
     return {"items": items}
+
+
+@router.get("/overview")
+async def overview(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Dashboard overview: summary across visible projects, user todos, recent activity."""
+    user_id = uuid.UUID(current_user["user_id"])
+    role = current_user["role"]
+
+    proj_query = select(Project).where(Project.status == "active")
+    projects = (await db.execute(proj_query)).scalars().all()
+    total_projects = len(projects)
+    project_ids = [p.id for p in projects]
+
+    total_images = 0
+    annotated_images = 0
+    images_approved = 0
+    images_rejected = 0
+    total_annotations = 0
+
+    if project_ids:
+        img_conds = [Image.project_id.in_(project_ids), Image.deleted_at.is_(None)]
+        total_images = (await db.execute(select(func.count(Image.id)).where(and_(*img_conds)))).scalar() or 0
+        annotated_images = (await db.execute(
+            select(func.count(Image.id)).where(and_(*img_conds, Image.annotation_status == "annotated"))
+        )).scalar() or 0
+        images_approved = (await db.execute(
+            select(func.count(Image.id)).where(and_(*img_conds, Image.review_status == "approved"))
+        )).scalar() or 0
+        images_rejected = (await db.execute(
+            select(func.count(Image.id)).where(and_(*img_conds, Image.review_status == "rejected"))
+        )).scalar() or 0
+
+        annos_q = select(func.count(Annotation.id)).where(
+            Annotation.image_id.in_(select(Image.id).where(and_(*img_conds)).scalar_subquery()),
+            Annotation.is_latest == True,
+        )
+        total_annotations = (await db.execute(annos_q)).scalar() or 0
+
+    # User-specific todos
+    my_todos = 0
+    todo_label = ""
+
+    if role == "annotator":
+        my_img_conds = [Image.deleted_at.is_(None), Image.annotation_status != "annotated"]
+        if project_ids:
+            my_img_conds.append(Image.project_id.in_(project_ids))
+        uploaded_q = select(func.count(Image.id)).where(and_(*my_img_conds, Image.uploaded_by == user_id))
+        my_uploaded = (await db.execute(uploaded_q)).scalar() or 0
+        assigned_ids_subq = select(TaskAssignment.image_id).where(
+            TaskAssignment.assignee_id == user_id, TaskAssignment.task_type == "annotation"
+        ).scalar_subquery()
+        assigned_q = select(func.count(Image.id)).where(and_(*my_img_conds, Image.id.in_(assigned_ids_subq)))
+        my_assigned = (await db.execute(assigned_q)).scalar() or 0
+        rejected_q = select(func.count(Image.id)).where(
+            and_(Image.uploaded_by == user_id, Image.review_status == "rejected", Image.deleted_at.is_(None))
+        )
+        my_rejected = (await db.execute(rejected_q)).scalar() or 0
+        my_todos = my_uploaded + my_assigned + my_rejected
+        todo_label = "待标注图片"
+
+    elif role == "reviewer":
+        if project_ids:
+            pending_q = select(func.count(Image.id)).where(
+                Image.project_id.in_(project_ids),
+                Image.review_status == "pending",
+                Image.deleted_at.is_(None),
+            )
+            my_todos = (await db.execute(pending_q)).scalar() or 0
+        todo_label = "待审核图片"
+
+    elif role in ("admin", "data_manager"):
+        if project_ids:
+            pending_q = select(func.count(Image.id)).where(
+                Image.project_id.in_(project_ids),
+                Image.review_status == "pending",
+                Image.deleted_at.is_(None),
+            )
+            my_todos = (await db.execute(pending_q)).scalar() or 0
+        todo_label = "待审核图片"
+
+    # Recent review activity (last 5)
+    recent_reviews = []
+    review_rows = (await db.execute(
+        select(ReviewRecord).order_by(ReviewRecord.created_at.desc()).limit(5)
+    )).scalars().all()
+
+    user_ids_in_reviews = [r.reviewer_id for r in review_rows]
+    user_map = {}
+    if user_ids_in_reviews:
+        users = (await db.execute(select(User).where(User.id.in_(user_ids_in_reviews)))).scalars().all()
+        user_map = {u.id: u for u in users}
+
+    for r in review_rows:
+        u = user_map.get(r.reviewer_id)
+        recent_reviews.append({
+            "reviewer": u.display_name if u else "unknown",
+            "action": r.action,
+            "reason": r.reason,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+
+    return {
+        "projects": {"total": total_projects},
+        "images": {
+            "total": total_images,
+            "annotated": annotated_images,
+            "unannotated": total_images - annotated_images,
+            "approved": images_approved,
+            "rejected": images_rejected,
+        },
+        "annotations": {"total": total_annotations},
+        "progress": round(annotated_images / max(total_images, 1) * 100, 1),
+        "my_todos": my_todos,
+        "todo_label": todo_label,
+        "recent_reviews": recent_reviews,
+    }

@@ -1,5 +1,10 @@
 import api from "./api";
 
+export async function getOverview() {
+  const r = await api.get("/stats/overview");
+  return r.data;
+}
+
 export async function getDashboardStats(projectId: string) {
   const r = await api.get("/stats/dashboard", { params: { project_id: projectId } });
   return r.data;
