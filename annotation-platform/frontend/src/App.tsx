@@ -12,6 +12,7 @@ import CategoryPage from "@/features/categories/CategoryPage";
 import ExportPage from "@/features/export/ExportPage";
 import AnnotationWorkbench from "@/features/annotation/AnnotationWorkbench";
 import ReviewWorkbench from "@/features/review/ReviewWorkbench";
+import UserManagementPage from "@/features/users/UserManagementPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="projects/:pid/export" element={<ExportPage />} />
         <Route path="stats" element={<StatsPage />} />
         <Route path="trash" element={<TrashPage />} />
+        <Route path="users" element={<UserManagementPage />} />
       </Route>
     </Routes>
   );

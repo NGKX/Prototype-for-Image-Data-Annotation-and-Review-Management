@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, projects, images, categories, annotations, reviews, exports, stats
+from app.api.v1 import auth, projects, images, categories, annotations, reviews, exports, stats, users
 
 router = APIRouter()
 
@@ -11,3 +11,4 @@ router.include_router(annotations.router, prefix="/annotations", tags=["annotati
 router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 router.include_router(exports.router, prefix="/exports", tags=["exports"])
 router.include_router(stats.router, prefix="/stats", tags=["stats"])
+router.include_router(users.router, prefix="/users", tags=["users"])

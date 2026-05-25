@@ -6,10 +6,7 @@ import {
   FolderOpen,
   BarChart3,
   Trash2,
-  Tags,
-  Image,
-  ClipboardCheck,
-  Download,
+  Users,
 } from "lucide-react";
 import type { Role } from "@/types/user";
 
@@ -25,6 +22,7 @@ const navItems: NavItemDef[] = [
   { to: "/projects", label: "项目管理", icon: <FolderOpen className="h-4 w-4" />, roles: ["admin", "data_manager", "reviewer", "annotator"] },
   { to: "/stats", label: "人员统计", icon: <BarChart3 className="h-4 w-4" />, roles: ["admin", "data_manager"] },
   { to: "/trash", label: "回收站", icon: <Trash2 className="h-4 w-4" />, roles: ["admin", "data_manager"] },
+  { to: "/users", label: "用户管理", icon: <Users className="h-4 w-4" />, roles: ["admin"] },
 ];
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
