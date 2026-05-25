@@ -76,7 +76,7 @@ export default function ImageListPage() {
   const totalPages = Math.max(1, Math.ceil(total / 20));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{project?.name || "图片列表"}</h1>
@@ -144,7 +144,7 @@ export default function ImageListPage() {
               ? `/projects/${pid}/review/${img.id}`
               : `/projects/${pid}/annotate/${img.id}`;
             return (
-            <Card key={img.id} className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
+            <Card key={img.id} className="cursor-pointer overflow-hidden transition-all hover:border-[#0066cc] card-apple p-0"
               onClick={() => navigate(clickTarget)}>
               <div className="aspect-video bg-gray-100 flex items-center justify-center">
                 {img.thumbnail_url ? (

@@ -47,7 +47,7 @@ export default function StatsPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">人员统计</h1>
       </div>

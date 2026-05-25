@@ -150,3 +150,57 @@ async def archive_project(
         created_at=project.created_at, updated_at=project.updated_at,
         image_count=0, annotated_count=0, approved_count=0,
     )
+
+
+# ── Project membership ──
+
+@router.post("/{project_id}/join")
+async def join_project(
+    project_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = UUID(current_user["user_id"])
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Project not found")
+    existing = await db.execute(
+        select(ProjectMember).where(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id)
+    )
+    if existing.scalar_one_or_none():
+        return {"status": "already_joined"}
+    member = ProjectMember(project_id=project_id, user_id=user_id, project_role="annotator")
+    db.add(member)
+    await db.commit()
+    return {"status": "joined"}
+
+
+@router.post("/{project_id}/leave")
+async def leave_project(
+    project_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = UUID(current_user["user_id"])
+    result = await db.execute(
+        select(ProjectMember).where(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id)
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        return {"status": "not_a_member"}
+    await db.delete(member)
+    await db.commit()
+    return {"status": "left"}
+
+
+@router.get("/{project_id}/is-member")
+async def check_membership(
+    project_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = UUID(current_user["user_id"])
+    result = await db.execute(
+        select(ProjectMember).where(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id)
+    )
+    return {"is_member": result.scalar_one_or_none() is not None}

@@ -74,17 +74,6 @@ async def upload_images(project_id, files, user_id, db):
 async def list_images(project_id, db, user, page=1, page_size=20, annotation_status=None, review_status=None, search=None):
     conditions = [Image.project_id == project_id, Image.deleted_at.is_(None)]
 
-    if user["role"] == "annotator":
-        user_uuid = uuid.UUID(user["user_id"])
-        q = select(TaskAssignment.image_id).where(TaskAssignment.assignee_id == user_uuid, TaskAssignment.task_type == "annotation")
-        r = await db.execute(q)
-        assigned_ids = [row[0] for row in r.fetchall()]
-        visible = [Image.uploaded_by == user_uuid]
-        if assigned_ids:
-            visible.append(Image.id.in_(assigned_ids))
-        visible.append(Image.review_status == "approved")
-        conditions.append(or_(*visible))
-
     if annotation_status:
         conditions.append(Image.annotation_status == annotation_status)
     if review_status:

@@ -35,7 +35,7 @@ async def list_project_images(
 async def upload_images(
     project_id: uuid.UUID = Query(...),
     files: list[UploadFile] = File(...),
-    current_user: dict = Depends(require_roles("admin", "data_manager")),
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     return await image_service.upload_images(

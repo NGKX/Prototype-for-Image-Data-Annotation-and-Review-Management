@@ -79,12 +79,13 @@ export default function UserManagementPage() {
   }
 
   async function handleDelete(userId: string) {
-    if (!window.confirm("确定要停用该用户吗？")) return;
+    if (!window.confirm("确定要永久删除该用户吗？此操作不可撤销。")) return;
     try {
       await deleteUser(userId);
-      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, is_active: false } : u));
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setTotal((t) => t - 1);
     } catch (err: any) {
-      alert(err?.response?.data?.detail || "操作失败");
+      alert(err?.response?.data?.detail || "删除失败");
     }
   }
 
@@ -98,7 +99,7 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">用户管理</h1>
@@ -208,8 +209,8 @@ export default function UserManagementPage() {
                             {u.is_active ? "停用" : "启用"}
                           </Button>
                           <Button variant="ghost" size="sm" className="text-xs text-red-500"
-                            onClick={() => handleDelete(u.id)} disabled={!u.is_active}>
-                            <Trash2 className="h-3 w-3" />
+                            onClick={() => handleDelete(u.id)}>
+                            <Trash2 className="mr-1 h-3 w-3" />删除
                           </Button>
                         </>
                       )}

@@ -93,7 +93,7 @@ export default function ExportPage() {
   const totalPages = Math.max(1, Math.ceil(total / 10));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold">{projectName || "数据导出"}</h1>
 
       {/* Export form */}

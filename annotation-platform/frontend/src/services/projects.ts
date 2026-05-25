@@ -18,3 +18,18 @@ export async function getProject(id: string): Promise<Project> {
   const response = await api.get<Project>(`/projects/${id}`);
   return response.data;
 }
+
+export async function joinProject(projectId: string) {
+  const r = await api.post(`/projects/${projectId}/join`);
+  return r.data;
+}
+
+export async function leaveProject(projectId: string) {
+  const r = await api.post(`/projects/${projectId}/leave`);
+  return r.data;
+}
+
+export async function checkMembership(projectId: string) {
+  const r = await api.get(`/projects/${projectId}/is-member`);
+  return r.data;
+}

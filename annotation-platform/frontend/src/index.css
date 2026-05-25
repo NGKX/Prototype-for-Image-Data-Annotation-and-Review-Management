@@ -4,22 +4,35 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --apple-blue: #0066cc;
+    --apple-blue-hover: #0071e3;
+    --apple-blue-on-dark: #2997ff;
+    --apple-ink: #1d1d1f;
+    --apple-ink-80: #333333;
+    --apple-ink-48: #86868b;
+    --apple-canvas: #ffffff;
+    --apple-parchment: #f5f5f7;
+    --apple-pearl: #fafafc;
+    --apple-dark-tile: #1d1d1f;
+    --apple-hairline: #e5e5e7;
+    --apple-divider: #f0f0f0;
+
+    --background: 0 0% 96%;
+    --foreground: 0 0% 12%;
+    --primary: 210 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 98%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 47%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 210 100% 40%;
+    --radius: 1.125rem;
   }
 }
 
@@ -28,7 +41,80 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    @apply text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.022em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d2d2d7; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a1a1a6; }
+}
+
+@layer components {
+  /* Apple-style card: hairline border, no shadow, large radius */
+  .card-apple {
+    @apply bg-white border border-[var(--apple-hairline)] rounded-2xl overflow-hidden;
+  }
+
+  /* Apple primary pill button */
+  .btn-apple {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[15px] font-medium
+           bg-[var(--apple-blue)] text-white
+           transition-all duration-150 active:scale-[0.97]
+           hover:bg-[var(--apple-blue-hover)]
+           focus:outline-none focus:ring-2 focus:ring-[var(--apple-blue-hover)] focus:ring-offset-2;
+  }
+
+  /* Apple secondary outline button */
+  .btn-apple-outline {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[15px] font-medium
+           bg-transparent text-[var(--apple-blue)] border border-[var(--apple-blue)]
+           transition-all duration-150 active:scale-[0.97]
+           hover:bg-[var(--apple-blue)]/[0.06]
+           focus:outline-none focus:ring-2 focus:ring-[var(--apple-blue-hover)] focus:ring-offset-2;
+  }
+
+  /* Apple ghost button */
+  .btn-apple-ghost {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-[14px] font-medium
+           bg-transparent text-[var(--apple-ink-48)]
+           transition-colors hover:bg-black/[0.04] hover:text-[var(--apple-ink-80)];
+  }
+
+  /* Stat number */
+  .stat-number {
+    @apply text-4xl md:text-5xl font-semibold tracking-tight;
+  }
+
+  /* Category chip */
+  .chip-apple {
+    @apply inline-flex items-center rounded-full px-4 py-2 text-sm font-medium
+           bg-white border border-[var(--apple-hairline)] text-[var(--apple-ink)]
+           cursor-pointer transition-all
+           hover:border-[var(--apple-blue)] active:scale-[0.97];
+  }
+  .chip-apple.active {
+    @apply border-[var(--apple-blue)] text-[var(--apple-blue)] shadow-sm;
+  }
+
+  /* Fade-in animation */
+  .fade-in {
+    animation: fadeIn 0.35s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }

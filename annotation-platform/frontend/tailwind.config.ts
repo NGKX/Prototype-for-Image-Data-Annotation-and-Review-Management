@@ -32,9 +32,19 @@ const config: Config = {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "1.125rem",
+        md: "0.75rem",
+        sm: "0.5rem",
+        xl: "1.375rem",
+        "2xl": "1.5rem",
+        full: "9999px",
+      },
+      fontFamily: {
+        sans: ["-apple-system", "BlinkMacSystemFont", "'SF Pro Text'", "'Inter'", "system-ui", "sans-serif"],
+        display: ["-apple-system", "BlinkMacSystemFont", "'SF Pro Display'", "'Inter'", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        product: "rgba(0, 0, 0, 0.22) 3px 5px 30px 0",
       },
     },
   },

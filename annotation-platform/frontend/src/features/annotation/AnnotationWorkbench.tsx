@@ -23,12 +23,14 @@ export default function AnnotationWorkbench() {
   const [categories, setCategories] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [imgName, setImgName] = useState("");
 
   useEffect(() => {
     if (!iid) return;
     store.reset();
     getImageDetail(iid).then((img: any) => {
       setImageUrl(img.presigned_url);
+      setImgName(img.original_name || "");
       useAnnotationStore.getState().setImageMeta({ width: img.width, height: img.height });
     });
     getAnnotations(iid).then((data: any) => {
@@ -46,7 +48,6 @@ export default function AnnotationWorkbench() {
     }
   }, [iid, pid]);
 
-  // Category rebinding: when an annotation is selected and user clicks a category
   useEffect(() => {
     const state = useAnnotationStore.getState();
     if (state.selectedId && state.activeCategoryId) {
@@ -54,16 +55,12 @@ export default function AnnotationWorkbench() {
       if (!cat) return;
       const a = state.annotations.find((x) => x.id === state.selectedId);
       if (!a || a.categoryId === cat.id) return;
-
-      // Update store
       const updated = { ...a, categoryId: cat.id, categoryColor: cat.color, categoryName: cat.name };
       const idx = state.annotations.findIndex((x) => x.id === a.id);
       const newList = [...state.annotations];
       newList[idx] = updated;
       state.setAnnotations(newList);
       state.setDirty(true);
-
-      // Update canvas object color
       const canvas = canvasRef.current?.getCanvas();
       if (canvas) {
         canvas.getObjects().forEach((o: any) => {
@@ -94,9 +91,7 @@ export default function AnnotationWorkbench() {
     if (!iid) return;
     setSubmitting(true);
     try {
-      // Save first
       await handleSave();
-      // Update image review status to under_review via the image endpoint
       await api.post(`/images/${iid}/submit-review`);
       store.setDirty(false);
       navigate(`/projects/${pid}/images`);
@@ -107,13 +102,10 @@ export default function AnnotationWorkbench() {
   function removeCanvasObject(aid: string) {
     const canvas = canvasRef.current?.getCanvas();
     if (!canvas) return;
-    canvas.getObjects().forEach((o: any) => {
-      if (o._aid === aid) canvas.remove(o);
-    });
+    canvas.getObjects().forEach((o: any) => { if (o._aid === aid) canvas.remove(o); });
     canvas.renderAll();
   }
 
-  // Keyboard shortcuts
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.ctrlKey && e.key === "z") { e.preventDefault(); store.undo(); }
@@ -133,119 +125,136 @@ export default function AnnotationWorkbench() {
     return () => window.removeEventListener("keydown", handler);
   }, [store]);
 
-  const toolBtn = (tool: string, icon: React.ReactNode, label: string) => (
-    <button
-      className={`flex flex-col items-center gap-0.5 rounded-lg p-2 text-xs transition-colors ${store.activeTool === tool ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-gray-100"}`}
-      onClick={() => store.setActiveTool(tool)}
-      title={label}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-
   return (
-    <div className="flex h-screen flex-col gap-0 bg-white">
-      {/* Top bar */}
-      <div className="flex items-center justify-between border-b p-2">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/projects/${pid}/images`)}>
-            <ArrowLeft className="mr-1 h-4 w-4" /> 返回
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={() => store.undo()} disabled={store.undoStack.length === 0}>
-              <Undo2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => store.redo()} disabled={store.redoStack.length === 0}>
-              <Redo2 className="h-4 w-4" />
-            </Button>
-          </div>
-          <span className="text-sm text-muted-foreground">缩放: {Math.round(store.zoomLevel * 100)}%</span>
-          <span className="text-sm text-muted-foreground">| 标注: {store.annotations.length}个</span>
+    <div className="flex h-screen flex-col bg-[#1d1d1f] overflow-hidden">
+      {/* Top bar — frosted */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white/5 backdrop-blur-md border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(`/projects/${pid}/images`)}
+            className="text-xs text-white/60 hover:text-white transition-colors flex items-center gap-1">
+            <ArrowLeft className="h-3.5 w-3.5" /> 返回
+          </button>
+          <span className="text-xs text-white/40">|</span>
+          <span className="text-xs text-white/80 font-medium">{imgName}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSave} disabled={saving || !store.isDirty}>
-            <Save className="mr-1 h-4 w-4" /> {saving ? "保存中..." : "保存"}
-          </Button>
-          <Button variant="default" size="sm" onClick={handleSubmitReview} disabled={submitting || store.annotations.length === 0}>
-            <Send className="mr-1 h-4 w-4" /> {submitting ? "提交中..." : "提交审核"}
-          </Button>
-          {store.isDirty && <Badge variant="warning">未保存</Badge>}
+          <span className="text-xs text-white/40">{store.annotations.length} 个标注</span>
+          {store.isDirty && <Badge variant="warning" className="text-[10px]">未保存</Badge>}
+          <div className="w-px h-5 bg-white/10 mx-1" />
+          <div className="flex items-center gap-1">
+            <button onClick={() => store.undo()} disabled={store.undoStack.length === 0}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors disabled:opacity-30">
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => store.redo()} disabled={store.redoStack.length === 0}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors disabled:opacity-30">
+              <Redo2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="w-px h-5 bg-white/10 mx-1" />
+          <span className="text-xs text-white/40">{Math.round(store.zoomLevel * 100)}%</span>
+          <button onClick={() => canvasRef.current?.zoomOut()}
+            className="p-1 rounded text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors">
+            <Minus className="h-3 w-3" />
+          </button>
+          <button onClick={() => canvasRef.current?.zoomIn()}
+            className="p-1 rounded text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors">
+            <Plus className="h-3 w-3" />
+          </button>
+          <button onClick={() => canvasRef.current?.fitToScreen()}
+            className="p-1 rounded text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors">
+            <Maximize className="h-3 w-3" />
+          </button>
+          <div className="w-px h-5 bg-white/10 mx-1" />
+          <button onClick={handleSave} disabled={saving || !store.isDirty}
+            className="text-xs text-white/60 hover:text-white transition-colors disabled:opacity-30 flex items-center gap-1">
+            <Save className="h-3.5 w-3.5" /> {saving ? "..." : "保存"}
+          </button>
+          <button onClick={handleSubmitReview} disabled={submitting || store.annotations.length === 0}
+            className="text-xs px-3 py-1.5 rounded-full bg-[#2997ff] text-white font-medium hover:bg-[#0071e3] transition-colors disabled:opacity-50 flex items-center gap-1">
+            <Send className="h-3 w-3" /> 提交审核
+          </button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Tools */}
-        <div className="flex w-14 flex-col items-center gap-1 border-r py-2">
-          {toolBtn("select", <MousePointer2 className="h-4 w-4" />, "选择")}
-          {toolBtn("bbox", <Square className="h-4 w-4" />, "矩形")}
-          {toolBtn("polygon", <Pentagon className="h-4 w-4" />, "多边形")}
-          <div className="my-2 w-8 border-t" />
-          <button className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-xs text-muted-foreground hover:bg-gray-100"
-            onClick={() => canvasRef.current?.zoomIn()} title="放大">
-            <Plus className="h-4 w-4" /><span>放大</span>
-          </button>
-          <button className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-xs text-muted-foreground hover:bg-gray-100"
-            onClick={() => canvasRef.current?.zoomOut()} title="缩小">
-            <Minus className="h-4 w-4" /><span>缩小</span>
-          </button>
-          <button className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-xs text-muted-foreground hover:bg-gray-100"
-            onClick={() => canvasRef.current?.fitToScreen()} title="适应">
-            <Maximize className="h-4 w-4" /><span>适应</span>
-          </button>
+        {/* Left tools */}
+        <div className="w-12 flex flex-col items-center gap-0.5 py-3 border-r border-white/10 bg-white/[0.02] flex-shrink-0">
+          <ToolBtn icon={<MousePointer2 className="h-4 w-4" />} label="选择" active={store.activeTool === "select"} onClick={() => store.setActiveTool("select")} />
+          <ToolBtn icon={<Square className="h-4 w-4" />} label="矩形" active={store.activeTool === "bbox"} onClick={() => store.setActiveTool("bbox")} />
+          <ToolBtn icon={<Pentagon className="h-4 w-4" />} label="多边形" active={store.activeTool === "polygon"} onClick={() => store.setActiveTool("polygon")} />
         </div>
 
-        {/* Center: Canvas */}
-        <div className="flex-1 overflow-hidden">
+        {/* Center canvas */}
+        <div className="flex-1 overflow-hidden p-4">
           {imageUrl ? (
             <AnnotationCanvas ref={canvasRef} imageUrl={imageUrl} />
           ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">加载图片中...</div>
+            <div className="flex h-full items-center justify-center text-white/30 text-sm">加载图片中...</div>
           )}
         </div>
 
-        {/* Right: Categories + Annotation list */}
-        <div className="w-52 border-l p-3 overflow-y-auto">
-          <h4 className="mb-2 text-sm font-semibold">类别</h4>
-          <div className="mb-4 space-y-1">
-            {categories.map((c: any) => (
-              <button
-                key={c.id}
-                className={`flex w-full items-center gap-2 rounded px-2 py-1 text-xs transition-colors ${store.activeCategoryId === c.id ? "bg-primary/10 font-medium" : "hover:bg-gray-100"}`}
-                onClick={() => store.setActiveCategory(store.activeCategoryId === c.id ? null : c.id)}
-              >
-                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: c.color }} />
-                <span className="flex-1 truncate text-left">{c.name}</span>
-                {c.shortcut_key && <span className="text-muted-foreground">{c.shortcut_key}</span>}
-              </button>
-            ))}
+        {/* Right panel */}
+        <div className="w-56 bg-[#f5f5f7] flex flex-col border-l border-black/5 overflow-y-auto flex-shrink-0">
+          <div className="p-4 border-b border-black/5">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b] mb-3">标签选择</h4>
+            <div className="flex flex-wrap gap-1.5">
+              {categories.map((c: any) => (
+                <button key={c.id}
+                  onClick={() => store.setActiveCategory(store.activeCategoryId === c.id ? null : c.id)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs border transition-all ${
+                    store.activeCategoryId === c.id
+                      ? "border-[#0066cc] text-[#0066cc] bg-blue-50 shadow-sm"
+                      : "border-[#e5e5e7] text-[#333] bg-white hover:border-[#0066cc]"
+                  }`}>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                  {c.name}
+                  {c.shortcut_key && <span className="text-[10px] text-[#86868b]">{c.shortcut_key}</span>}
+                </button>
+              ))}
+            </div>
           </div>
-
-          <h4 className="mb-2 text-sm font-semibold">标注列表</h4>
-          <div className="space-y-1">
+          <div className="p-4 flex-1">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b] mb-3">标注列表</h4>
             {store.annotations.length === 0 ? (
-              <p className="text-xs text-muted-foreground">暂未标注</p>
+              <p className="text-xs text-[#86868b]">暂未标注</p>
             ) : (
-              store.annotations.map((a) => (
-                <div
-                  key={a.id}
-                  className={`flex items-center gap-2 rounded px-2 py-1 text-xs cursor-pointer ${store.selectedId === a.id ? "bg-blue-50" : "hover:bg-gray-100"}`}
-                  onClick={() => store.setSelectedId(a.id)}
-                >
-                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: a.categoryColor || "#999" }} />
-                  <span className="flex-1 truncate">{a.categoryName || a.type}</span>
-                  {a.isAuto && <Badge variant="outline" className="text-[10px]">auto</Badge>}
-                  <button className="text-red-400 hover:text-red-600" onClick={(e) => {
-                    e.stopPropagation();
-                    removeCanvasObject(a.id);
-                    store.deleteAnnotation(a.id);
-                  }}><Trash2 className="h-3 w-3" /></button>
-                </div>
-              ))
+              <div className="space-y-1.5">
+                {store.annotations.map((a) => (
+                  <div key={a.id}
+                    onClick={() => store.setSelectedId(a.id)}
+                    className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs cursor-pointer transition-all ${
+                      store.selectedId === a.id ? "bg-white shadow-sm border border-[#0066cc] text-[#0066cc]" : "hover:bg-white/60 text-[#333]"
+                    }`}>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: a.categoryColor || "#999" }} />
+                    <span className="flex-1 truncate font-medium">{a.categoryName || a.type}</span>
+                    {a.isAuto && <Badge variant="outline" className="text-[10px]">auto</Badge>}
+                    <button className="text-[#86868b] hover:text-red-500 transition-colors ml-auto"
+                      onClick={(e) => { e.stopPropagation(); removeCanvasObject(a.id); store.deleteAnnotation(a.id); }}>
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
+          </div>
+          <div className="p-3 bg-[#f5f5f7] border-t border-black/5 text-[10px] text-[#86868b] text-center">
+            请确保数据已脱敏处理
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ToolBtn({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className={`flex flex-col items-center gap-0.5 rounded-xl p-2 w-10 text-[10px] transition-colors ${
+        active ? "bg-white/10 text-[#2997ff]" : "text-white/30 hover:text-white/60 hover:bg-white/[0.04]"
+      }`}
+      title={label}>
+      {icon}
+    </button>
   );
 }

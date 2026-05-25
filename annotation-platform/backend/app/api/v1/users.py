@@ -93,7 +93,7 @@ async def delete_user(
     if str(user.id) == current_user["user_id"]:
         raise HTTPException(status_code=400, detail="不能删除自己")
 
-    # Soft-delete: deactivate instead of removing
-    user.is_active = False
+    # Hard delete from database
+    await db.delete(user)
     await db.commit()
-    return {"status": "deactivated", "user_id": str(user_id)}
+    return {"status": "deleted", "user_id": str(user_id)}
