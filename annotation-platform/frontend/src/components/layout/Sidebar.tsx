@@ -22,7 +22,7 @@ interface NavItemDef {
 
 const navItems: NavItemDef[] = [
   { to: "/dashboard", label: "仪表盘", icon: <LayoutDashboard className="h-4 w-4" />, roles: ["admin", "data_manager", "reviewer", "annotator"] },
-  { to: "/projects", label: "项目管理", icon: <FolderOpen className="h-4 w-4" />, roles: ["admin", "data_manager"] },
+  { to: "/projects", label: "项目管理", icon: <FolderOpen className="h-4 w-4" />, roles: ["admin", "data_manager", "reviewer"] },
   { to: "/stats", label: "人员统计", icon: <BarChart3 className="h-4 w-4" />, roles: ["admin", "data_manager"] },
   { to: "/trash", label: "回收站", icon: <Trash2 className="h-4 w-4" />, roles: ["admin", "data_manager"] },
 ];

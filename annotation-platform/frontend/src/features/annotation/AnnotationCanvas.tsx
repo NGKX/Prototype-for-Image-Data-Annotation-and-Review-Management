@@ -174,7 +174,7 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(({ imageUrl, 
         fill: "#3388FF22", stroke: "#3388FF",
         strokeWidth: 2 / fabric.getZoom(),
       });
-      (r as any)._annoId = id;
+      (r as any)._aid = id;
       r.on("selected", () => setSelectedId(id));
       fabric.add(r);
       fabric.renderAll();
@@ -241,7 +241,7 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(({ imageUrl, 
         const vpt = fabric.viewportTransform!;
         const canvasPts = points.map(([x, y]: number[]) => ({ x: x * zoom + vpt[4], y: y * zoom + vpt[5] }));
         const poly = new Polygon(canvasPts, { fill: "#3388FF22", stroke: "#3388FF", strokeWidth: 2 / zoom, selectable: true });
-        (poly as any)._annoId = id;
+        (poly as any)._aid = id;
         poly.on("selected", () => setSelectedId(id));
         fabric.add(poly);
         cancelDrawing();
@@ -271,7 +271,7 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(({ imageUrl, 
         const vpt = fabric.viewportTransform!;
         const canvasPts = points.map(([x, y]: number[]) => ({ x: x * zoom + vpt[4], y: y * zoom + vpt[5] }));
         const poly = new Polygon(canvasPts, { fill: "#3388FF22", stroke: "#3388FF", strokeWidth: 2 / zoom, selectable: true });
-        (poly as any)._annoId = id;
+        (poly as any)._aid = id;
         poly.on("selected", () => setSelectedId(id));
         fabric.add(poly);
         cancelDrawing();
@@ -288,26 +288,71 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(({ imageUrl, 
     };
   }, [activeTool, activeCategoryId, addAnnotation, setSelectedId]);
 
+  // Sync Fabric object changes back to store (resize/move)
+  useEffect(() => {
+    const fabric = fabricRef.current;
+    if (!fabric) return;
+    const handler = (opt: any) => {
+      const st = useAnnotationStore.getState();
+      const obj = opt.target;
+      if (!obj || !(obj as any)._aid) return;
+      const id = (obj as any)._aid;
+      const a = st.annotations.find((x) => x.id === id);
+      if (!a) return;
+      const bounds = obj.getBoundingRect();
+      const center = canvasToImage(fabric, { x: bounds.left, y: bounds.top });
+      const br = canvasToImage(fabric, { x: bounds.left + bounds.width, y: bounds.top + bounds.height });
+      // Auto-to-manual transition
+      if (a.isAuto) {
+        st.setAnnotations(st.annotations.map((x) => x.id === id ? { ...x, geometry: x.geometry, isAuto: false } : x));
+        // Update visual
+        obj.set({ stroke: obj.stroke === "#FF9800" ? (a.categoryColor || "#3388FF") : obj.stroke, strokeDashArray: [], fill: `${a.categoryColor || "#3388FF"}22` });
+      }
+      if (a.type === "bbox") {
+        st.updateAnnotation(id, roundCoords({ x: center.x, y: center.y, width: br.x - center.x, height: br.y - center.y }));
+      } else if (a.type === "polygon") {
+        const pts: number[][] = [];
+        if ((obj as any).points) {
+          ((obj as any).points as any[]).forEach((p: any) => {
+            const ip = canvasToImage(fabric, { x: (obj.left || 0) + p.x * (obj.scaleX || 1), y: (obj.top || 0) + p.y * (obj.scaleY || 1) });
+            pts.push([roundCoords(ip).x, roundCoords(ip).y]);
+          });
+        }
+        if (pts.length >= 3) st.updateAnnotation(id, { points: pts, closed: true });
+      }
+    };
+    fabric.on("object:modified", handler);
+    return () => { fabric.off("object:modified", handler); };
+  }, []);
+
   // Render annotations
   useEffect(() => {
     const fabric = fabricRef.current;
     if (!fabric) return;
     const objs = fabric.getObjects();
-    objs.forEach((o) => { if ((o as any)._annoId) fabric.remove(o); });
+    objs.forEach((o) => { if ((o as any)._aid) fabric.remove(o); });
     const zoom = fabric.getZoom();
     const vpt = fabric.viewportTransform!;
 
     annotations.forEach((a) => {
       if (a.type === "bbox") {
         const g = a.geometry;
+        const color = a.categoryColor || "#3388FF";
+        const autoStyle = a.isAuto ? {
+          strokeDashArray: [6, 4],
+          fill: `${color}11`,
+          stroke: "#FF9800",
+        } : {
+          fill: `${color}22`,
+          stroke: color,
+        };
         const r = new Rect({
           left: g.x * zoom + vpt[4], top: g.y * zoom + vpt[5],
           width: (g.width || 0) * zoom, height: (g.height || 0) * zoom,
-          fill: `${a.categoryColor || "#3388FF"}22`,
-          stroke: a.categoryColor || "#3388FF",
           strokeWidth: 2 / zoom, selectable: true,
+          ...autoStyle,
         });
-        (r as any)._annoId = a.id;
+        (r as any)._aid = a.id;
         r.on("selected", () => setSelectedId(a.id));
         if (a.id === selectedId) { r.set({ strokeWidth: 3 / zoom }); fabric.setActiveObject(r); }
         fabric.add(r);
@@ -316,7 +361,7 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(({ imageUrl, 
         const points = a.geometry.points?.map((p: number[]) => ({ x: p[0] * zoom + vpt[4], y: p[1] * zoom + vpt[5] })) || [];
         if (points.length >= 3) {
           const poly = new Polygon(points, { fill: `${a.categoryColor || "#3388FF"}22`, stroke: a.categoryColor || "#3388FF", strokeWidth: 2 / zoom, selectable: true });
-          (poly as any)._annoId = a.id;
+          (poly as any)._aid = a.id;
           poly.on("selected", () => setSelectedId(a.id));
           fabric.add(poly);
         }

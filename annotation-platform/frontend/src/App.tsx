@@ -11,6 +11,7 @@ import TrashPage from "@/features/trash/TrashPage";
 import CategoryPage from "@/features/categories/CategoryPage";
 import ExportPage from "@/features/export/ExportPage";
 import AnnotationWorkbench from "@/features/annotation/AnnotationWorkbench";
+import ReviewWorkbench from "@/features/review/ReviewWorkbench";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/projects/:pid/annotate/:iid" element={<ProtectedRoute><AnnotationWorkbench /></ProtectedRoute>} />
+      <Route path="/projects/:pid/review/:iid" element={<ProtectedRoute><ReviewWorkbench /></ProtectedRoute>} />
       <Route
         path="/"
         element={

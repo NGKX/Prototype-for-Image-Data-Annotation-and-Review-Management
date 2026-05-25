@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getImages, uploadImages } from "@/services/images";
+import { getImages, uploadImages, autoAnnotate, deleteImage } from "@/services/images";
 import { getProject } from "@/services/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, Search, Image as ImageIcon } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { Upload, Search, Image as ImageIcon, Sparkles, ClipboardCheck, Trash2 } from "lucide-react";
 import type { Project } from "@/types/project";
 
 const statusLabel: Record<string, string> = {
@@ -67,6 +68,11 @@ export default function ImageListPage() {
     }
   }
 
+  const user = useAuthStore((s) => s.user);
+  const userRole = user?.role || "annotator";
+  const canReview = userRole === "admin" || userRole === "reviewer";
+  const canAutoAnnotate = userRole === "admin" || userRole === "data_manager";
+
   const totalPages = Math.max(1, Math.ceil(total / 20));
 
   return (
@@ -126,9 +132,14 @@ export default function ImageListPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {images.map((img: any) => (
+          {images.map((img: any) => {
+            const isPending = img.review_status === "pending" && img.annotation_status === "annotated";
+            const clickTarget = (isPending && canReview)
+              ? `/projects/${pid}/review/${img.id}`
+              : `/projects/${pid}/annotate/${img.id}`;
+            return (
             <Card key={img.id} className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
-              onClick={() => navigate(`/projects/${pid}/annotate/${img.id}`)}>
+              onClick={() => navigate(clickTarget)}>
               <div className="aspect-video bg-gray-100 flex items-center justify-center">
                 {img.thumbnail_url ? (
                   <img src={img.thumbnail_url} alt={img.original_name} className="h-full w-full object-cover" />
@@ -138,16 +149,45 @@ export default function ImageListPage() {
               </div>
               <CardContent className="p-3">
                 <p className="truncate text-sm font-medium" title={img.original_name}>{img.original_name}</p>
-                <div className="mt-1 flex gap-1">
+                <div className="mt-1 flex gap-1 flex-wrap">
                   <Badge variant="secondary" className="text-xs">{statusLabel[img.annotation_status] || img.annotation_status}</Badge>
                   <Badge variant={img.review_status === "approved" ? "success" : img.review_status === "rejected" ? "destructive" : "outline"} className="text-xs">
                     {reviewLabel[img.review_status] || img.review_status}
                   </Badge>
                 </div>
                 {img.width && <p className="mt-1 text-xs text-muted-foreground">{img.width}×{img.height}</p>}
+                <div className="mt-2 flex gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  {canAutoAnnotate && (
+                    <Button variant="outline" size="sm" className="text-xs h-7"
+                      onClick={async () => {
+                        try { await autoAnnotate(img.id); load(); }
+                        catch (err) { console.error(err); }
+                      }}>
+                      <Sparkles className="mr-1 h-3 w-3" /> 自动标注
+                    </Button>
+                  )}
+                  {isPending && canReview && (
+                    <Button variant="default" size="sm" className="text-xs h-7"
+                      onClick={() => navigate(`/projects/${pid}/review/${img.id}`)}>
+                      <ClipboardCheck className="mr-1 h-3 w-3" /> 审核
+                    </Button>
+                  )}
+                  {canAutoAnnotate && (
+                    <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500 hover:text-red-700"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!window.confirm("确定要删除该图片吗？")) return;
+                        try { await deleteImage(img.id); load(); }
+                        catch (err) { console.error(err); }
+                      }}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

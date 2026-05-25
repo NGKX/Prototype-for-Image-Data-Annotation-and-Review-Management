@@ -4,6 +4,7 @@ import { useAnnotationStore } from "./store";
 import { getAnnotations, saveBatch } from "@/services/annotations";
 import { getImageDetail } from "@/services/images";
 import { getCategories } from "@/services/categories";
+import api from "@/services/api";
 import AnnotationCanvas, { type AnnotationCanvasHandle } from "./AnnotationCanvas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ export default function AnnotationWorkbench() {
   const [imageUrl, setImageUrl] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!iid) return;
@@ -44,6 +46,37 @@ export default function AnnotationWorkbench() {
     }
   }, [iid, pid]);
 
+  // Category rebinding: when an annotation is selected and user clicks a category
+  useEffect(() => {
+    const state = useAnnotationStore.getState();
+    if (state.selectedId && state.activeCategoryId) {
+      const cat = categories.find((c: any) => c.id === state.activeCategoryId);
+      if (!cat) return;
+      const a = state.annotations.find((x) => x.id === state.selectedId);
+      if (!a || a.categoryId === cat.id) return;
+
+      // Update store
+      const updated = { ...a, categoryId: cat.id, categoryColor: cat.color, categoryName: cat.name };
+      const idx = state.annotations.findIndex((x) => x.id === a.id);
+      const newList = [...state.annotations];
+      newList[idx] = updated;
+      state.setAnnotations(newList);
+      state.setDirty(true);
+
+      // Update canvas object color
+      const canvas = canvasRef.current?.getCanvas();
+      if (canvas) {
+        canvas.getObjects().forEach((o: any) => {
+          if (o._aid === a.id) {
+            o.set({ fill: `${cat.color}22`, stroke: cat.color });
+            canvas.renderAll();
+          }
+        });
+      }
+      state.setActiveCategory(null);
+    }
+  }, [store.selectedId, store.activeCategoryId, categories]);
+
   async function handleSave() {
     if (!iid) return;
     setSaving(true);
@@ -57,6 +90,29 @@ export default function AnnotationWorkbench() {
     finally { setSaving(false); }
   }
 
+  async function handleSubmitReview() {
+    if (!iid) return;
+    setSubmitting(true);
+    try {
+      // Save first
+      await handleSave();
+      // Update image review status to under_review via the image endpoint
+      await api.post(`/images/${iid}/submit-review`);
+      store.setDirty(false);
+      navigate(`/projects/${pid}/images`);
+    } catch (e) { console.error(e); }
+    finally { setSubmitting(false); }
+  }
+
+  function removeCanvasObject(aid: string) {
+    const canvas = canvasRef.current?.getCanvas();
+    if (!canvas) return;
+    canvas.getObjects().forEach((o: any) => {
+      if (o._aid === aid) canvas.remove(o);
+    });
+    canvas.renderAll();
+  }
+
   // Keyboard shortcuts
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -68,9 +124,7 @@ export default function AnnotationWorkbench() {
       if (e.key === "v" && !e.ctrlKey) store.setActiveTool("select");
       if (e.key === "Delete" || e.key === "Backspace") {
         if (store.selectedId) {
-          canvasRef.current?.getCanvas()?.getObjects().forEach((o: any) => {
-            if (o.data?.annotationId === store.selectedId) canvasRef.current?.getCanvas()?.remove(o);
-          });
+          removeCanvasObject(store.selectedId);
           store.deleteAnnotation(store.selectedId);
         }
       }
@@ -107,17 +161,21 @@ export default function AnnotationWorkbench() {
             </Button>
           </div>
           <span className="text-sm text-muted-foreground">缩放: {Math.round(store.zoomLevel * 100)}%</span>
+          <span className="text-sm text-muted-foreground">| 标注: {store.annotations.length}个</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleSave} disabled={saving || !store.isDirty}>
             <Save className="mr-1 h-4 w-4" /> {saving ? "保存中..." : "保存"}
+          </Button>
+          <Button variant="default" size="sm" onClick={handleSubmitReview} disabled={submitting || store.annotations.length === 0}>
+            <Send className="mr-1 h-4 w-4" /> {submitting ? "提交中..." : "提交审核"}
           </Button>
           {store.isDirty && <Badge variant="warning">未保存</Badge>}
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Tools + Categories */}
+        {/* Left: Tools */}
         <div className="flex w-14 flex-col items-center gap-1 border-r py-2">
           {toolBtn("select", <MousePointer2 className="h-4 w-4" />, "选择")}
           {toolBtn("bbox", <Square className="h-4 w-4" />, "矩形")}
@@ -147,7 +205,7 @@ export default function AnnotationWorkbench() {
         </div>
 
         {/* Right: Categories + Annotation list */}
-        <div className="w-52 border-l p-3">
+        <div className="w-52 border-l p-3 overflow-y-auto">
           <h4 className="mb-2 text-sm font-semibold">类别</h4>
           <div className="mb-4 space-y-1">
             {categories.map((c: any) => (
@@ -179,9 +237,7 @@ export default function AnnotationWorkbench() {
                   {a.isAuto && <Badge variant="outline" className="text-[10px]">auto</Badge>}
                   <button className="text-red-400 hover:text-red-600" onClick={(e) => {
                     e.stopPropagation();
-                    canvasRef.current?.getCanvas()?.getObjects().forEach((o: any) => {
-                      if (o.data?.annotationId === a.id) canvasRef.current?.getCanvas()?.remove(o);
-                    });
+                    removeCanvasObject(a.id);
                     store.deleteAnnotation(a.id);
                   }}><Trash2 className="h-3 w-3" /></button>
                 </div>
