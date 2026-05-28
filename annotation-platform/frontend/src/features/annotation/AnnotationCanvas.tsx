@@ -330,7 +330,7 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(({ imageUrl, 
     const fabric = fabricRef.current;
     if (!fabric) return;
     const objs = fabric.getObjects();
-    objs.forEach((o) => { if ((o as any)._aid) fabric.remove(o); });
+    objs.forEach((o: any) => { if (o._aid) fabric.remove(o); });
     const zoom = fabric.getZoom();
     const vpt = fabric.viewportTransform!;
 
