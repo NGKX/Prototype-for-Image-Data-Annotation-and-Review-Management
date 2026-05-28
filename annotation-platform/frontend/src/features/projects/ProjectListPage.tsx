@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getProjects, createProject, joinProject, leaveProject } from "@/services/projects";
+import { getProjects, createProject, joinProject, leaveProject, deleteProject } from "@/services/projects";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FolderOpen, LogIn, LogOut } from "lucide-react";
+import { Plus, FolderOpen, LogIn, LogOut, Trash2 } from "lucide-react";
 import type { Project } from "@/types/project";
 
 export default function ProjectListPage() {
@@ -134,19 +134,32 @@ export default function ProjectListPage() {
                       <span>已标注: {p.annotated_count}</span>
                       <span>已审核: {p.approved_count}</span>
                     </div>
-                    {!canManage && (
-                      isMember ? (
-                        <Button variant="outline" size="sm" className="text-xs h-7"
-                          onClick={(e) => { e.stopPropagation(); handleLeave(p.id); }}>
-                          <LogOut className="mr-1 h-3 w-3" /> 退出
+                    <div className="flex gap-1">
+                      {!canManage && (
+                        isMember ? (
+                          <Button variant="outline" size="sm" className="text-xs h-7"
+                            onClick={(e) => { e.stopPropagation(); handleLeave(p.id); }}>
+                            <LogOut className="mr-1 h-3 w-3" /> 退出
+                          </Button>
+                        ) : (
+                          <Button variant="default" size="sm" className="text-xs h-7"
+                            onClick={(e) => { e.stopPropagation(); handleJoin(p.id); }}>
+                            <LogIn className="mr-1 h-3 w-3" /> 加入
+                          </Button>
+                        )
+                      )}
+                      {role === "admin" && (
+                        <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500 hover:text-red-700"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm(`确定要删除项目"${p.name}"及其所有数据吗？此操作不可撤销。`)) return;
+                            try { await deleteProject(p.id); load(); }
+                            catch (err) { console.error(err); }
+                          }}>
+                          <Trash2 className="h-3 w-3" />
                         </Button>
-                      ) : (
-                        <Button variant="default" size="sm" className="text-xs h-7"
-                          onClick={(e) => { e.stopPropagation(); handleJoin(p.id); }}>
-                          <LogIn className="mr-1 h-3 w-3" /> 加入
-                        </Button>
-                      )
-                    )}
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

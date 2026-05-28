@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func, and_, case
+from sqlalchemy import select, func, and_, case, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
@@ -7,6 +7,11 @@ from app.api.deps import get_db
 from app.core.security import get_current_user, require_roles
 from app.models.project import Project, ProjectMember
 from app.models.image import Image
+from app.models.annotation import Annotation, AnnotationVersion
+from app.models.category import Category
+from app.models.review import ReviewRecord
+from app.models.task_assignment import TaskAssignment
+from app.models.export_record import ExportRecord
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectRead
 from app.schemas.common import PaginatedResponse
 
@@ -150,6 +155,37 @@ async def archive_project(
         created_at=project.created_at, updated_at=project.updated_at,
         image_count=0, annotated_count=0, approved_count=0,
     )
+
+
+@router.delete("/{project_id}")
+async def delete_project(
+    project_id: UUID,
+    current_user: dict = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    # Delete related data in order
+    img_ids = (await db.execute(select(Image.id).where(Image.project_id == project_id))).scalars().all()
+    if img_ids:
+        anno_ids = (await db.execute(select(Annotation.id).where(Annotation.image_id.in_(img_ids)))).scalars().all()
+        if anno_ids:
+            await db.execute(delete(AnnotationVersion).where(AnnotationVersion.annotation_id.in_(anno_ids)))
+            await db.execute(delete(ReviewRecord).where(ReviewRecord.annotation_id.in_(anno_ids)))
+        await db.execute(delete(Annotation).where(Annotation.image_id.in_(img_ids)))
+        await db.execute(delete(TaskAssignment).where(TaskAssignment.image_id.in_(img_ids)))
+
+    await db.execute(delete(ExportRecord).where(ExportRecord.project_id == project_id))
+    await db.execute(delete(Image).where(Image.project_id == project_id))
+    await db.execute(delete(Category).where(Category.project_id == project_id))
+    await db.execute(delete(ProjectMember).where(ProjectMember.project_id == project_id))
+    await db.execute(delete(Project).where(Project.id == project_id))
+
+    await db.commit()
+    return {"status": "deleted", "project_id": str(project_id)}
 
 
 # ── Project membership ──

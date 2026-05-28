@@ -10,8 +10,8 @@ export async function getDashboardStats(projectId: string) {
   return r.data;
 }
 
-export async function getAnnotatorStats(projectId: string) {
-  const r = await api.get("/stats/annotators", { params: { project_id: projectId } });
+export async function getMemberStats(projectId: string) {
+  const r = await api.get("/stats/members", { params: { project_id: projectId } });
   return r.data;
 }
 

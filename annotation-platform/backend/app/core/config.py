@@ -1,16 +1,23 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import json
+import os
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",
+    )
+
     APP_NAME: str = "Annotation Platform"
     APP_VERSION: str = "1.0.0"
     APP_ENV: str = "development"
     DEBUG: bool = True
 
-    # Database
-    DATABASE_URL: str = ""
+    # Database — default to SQLite for local dev
+    DATABASE_URL: str = "sqlite+aiosqlite:///./dev.db"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -25,7 +32,7 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = False
 
     # JWT
-    JWT_SECRET_KEY: str = ""
+    JWT_SECRET_KEY: str = "dev-secret-change-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
 
@@ -44,11 +51,6 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         return json.loads(self.CORS_ORIGINS)
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "allow"
 
 
 settings = Settings()

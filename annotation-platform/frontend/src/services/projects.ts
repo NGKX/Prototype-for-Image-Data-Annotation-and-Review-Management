@@ -33,3 +33,8 @@ export async function checkMembership(projectId: string) {
   const r = await api.get(`/projects/${projectId}/is-member`);
   return r.data;
 }
+
+export async function deleteProject(projectId: string) {
+  const r = await api.delete(`/projects/${projectId}`);
+  return r.data;
+}
